@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Descargador de Musica/Videos</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">
+        <i class="fab fa-youtube"></i>
+        <h1>Descargador</h1>
+      </div>
+      <p>
+        Descarga videos y audio de la plataforma mas grande de videos en linea
+        en máxima calidad
+      </p>
+    </header>
+
+    <main>
+      <section class="url-input">
+        <div class="input-group">
+          <input type="text" id="url" placeholder="Pega el enlace aquí..." />
+          <button id="preview-btn">
+            <i class="fas fa-search"></i> Previsualizar
+          </button>
+        </div>
+        <div
+          class="preview-container"
+          id="preview-container"
+          style="display: none"
+        >
+          <div class="video-preview" id="video-preview"></div>
+          <div class="video-info" id="video-info"></div>
+        </div>
+      </section>
+
+      <section class="download-options">
+        <div class="format-selection">
+          <label>
+            <input type="radio" name="format" value="video" checked />
+            <i class="fas fa-film"></i> Video
+          </label>
+          <label>
+            <input type="radio" name="format" value="audio" />
+            <i class="fas fa-music"></i> Audio
+          </label>
+        </div>
+
+        <div class="quality-selection">
+          <h3>Calidad:</h3>
+          <select id="video-quality" class="quality-select">
+            <option value="highest">Máxima Calidad</option>
+            <option value="1080p">1080p</option>
+            <option value="720p">720p</option>
+            <option value="480p">480p</option>
+            <option value="360p">360p</option>
+          </select>
+          <select
+            id="audio-quality"
+            class="quality-select"
+            style="display: none"
+          >
+            <option value="highest">Máxima Calidad (320kbps)</option>
+            <option value="256kbps">256kbps</option>
+            <option value="192kbps">192kbps</option>
+            <option value="128kbps">128kbps</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="download-actions">
+        <button id="download-btn" class="download-btn">
+          <i class="fas fa-download"></i> Descargar
+        </button>
+        <div class="progress-container">
+          <div class="progress-bar" id="progress-bar"></div>
+          <div class="progress-text" id="progress-text">0%</div>
+        </div>
+      </section>
+
+      <section class="download-queue">
+        <h3>Cola de Descargas</h3>
+        <ul id="queue-list"></ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>© 2025 Descargador Premium de | Todos los derechos reservados</p>
+      <p class="disclaimer">
+        Este servicio es solo para contenido de libre distribución. Respeta los
+        derechos de autor.
+      </p>
+    </footer>
+
+    <div id="debug-console" class="debug-console" style="display: none"></div>
+    <button id="debug-toggle" class="debug-toggle">
+      <i class="fas fa-bug"></i>
+    </button>
+
+    <script src="script.js"></script>
+
+    <script>
+      // Función para mostrar/ocultar consola de depuración
+      document
+        .getElementById("debug-toggle")
+        .addEventListener("click", function () {
+          const consoleEl = document.getElementById("debug-console");
+          consoleEl.style.display =
+            consoleEl.style.display === "none" ? "block" : "none";
+        });
+
+      // Función para agregar mensajes a la consola de depuración
+      window.debugLog = function (message) {
+        const consoleEl = document.getElementById("debug-console");
+        const logEntry = document.createElement("div");
+        logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        consoleEl.appendChild(logEntry);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+      };
+    </script>
+
+    <script src="script.js"></script>
+  </body>
+</html>

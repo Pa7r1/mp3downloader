@@ -1,0 +1,21 @@
+{
+  "name": "ydl-2025",
+  "version": "1.0.0",
+  "description": "programa para descargar audios mp3 o videos mp4",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "sanitize-filename": "^1.6.3",
+    "ytdl-core": "npm:@distube/ytdl-core@^4.16.12"
+  }
+}
