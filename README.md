@@ -1,4 +1,4 @@
-# 📋 Descargador Premium de Videos y Música
+# 📋 Descargador de Videos y Música
 
 Este proyecto es un sistema **cliente-servidor completo** que permite descargar contenido desde enlaces de YouTube en formato **video (MP4)** o **audio (MP3)**, con selección de calidad y manejo de colas de descarga.  
 Fue desarrollado como parte de mi portafolio para practicar arquitectura fullstack, procesamiento de streams y conversión multimedia.
