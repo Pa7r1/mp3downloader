@@ -7,7 +7,6 @@ class ImprovedYouTubeDownloader {
   }
 
   initializeElements() {
-    // Elementos DOM principales
     this.downloadBtn = document.getElementById("download-btn");
     this.previewBtn = document.getElementById("preview-btn");
     this.urlInput = document.getElementById("url");
@@ -18,7 +17,6 @@ class ImprovedYouTubeDownloader {
     this.progressText = document.getElementById("progress-text");
     this.queueList = document.getElementById("queue-list");
 
-    // Elementos de formato y calidad
     this.videoFormat = document.querySelector(
       'input[name="format"][value="video"]'
     );
@@ -34,6 +32,8 @@ class ImprovedYouTubeDownloader {
     this.currentDownload = null;
     this.isProcessing = false;
     this.videoInfoCache = new Map();
+    this.currentContentType = null; // 'video' o 'playlist'
+    this.currentPlaylistData = null;
 
     this.progressSteps = {
       INITIALIZING: { weight: 5, label: "Iniciando descarga..." },
@@ -110,7 +110,6 @@ class ImprovedYouTubeDownloader {
       progressLabel.style.opacity = "1";
     }
 
-    // Actualizar elemento actual en la cola
     if (this.currentDownload) {
       this.currentDownload.progress = this.totalProgress;
       this.currentDownload.status = this.getStatusFromStep(this.currentStep);
@@ -130,7 +129,6 @@ class ImprovedYouTubeDownloader {
   }
 
   initEventListeners() {
-    // Botones principales
     this.previewBtn.addEventListener(
       "click",
       this.handlePreviewClick.bind(this)
@@ -140,7 +138,6 @@ class ImprovedYouTubeDownloader {
       this.handleDownloadClick.bind(this)
     );
 
-    // Cambios de formato
     this.videoFormat.addEventListener(
       "change",
       this.handleFormatChange.bind(this)
@@ -150,12 +147,10 @@ class ImprovedYouTubeDownloader {
       this.handleFormatChange.bind(this)
     );
 
-    // Enter en el input de URL
     this.urlInput.addEventListener("keypress", (e) => {
       if (e.key === "Enter") this.handlePreviewClick();
     });
 
-    // Validación en tiempo real con animación
     this.urlInput.addEventListener(
       "input",
       this.debounce(() => this.validateURLWithAnimation(), 300)
@@ -171,7 +166,6 @@ class ImprovedYouTubeDownloader {
 
     this.previewBtn.disabled = !isValid;
 
-    // Animación sutil en el botón
     if (isValid) {
       this.previewBtn.style.transform = "scale(1.02)";
       setTimeout(() => (this.previewBtn.style.transform = ""), 150);
@@ -193,7 +187,7 @@ class ImprovedYouTubeDownloader {
     this.setLoadingState(true);
 
     try {
-      await this.previewVideo(url);
+      await this.detectAndPreview(url);
     } catch (error) {
       this.showNotification(`Error: ${error.message}`, "error");
     } finally {
@@ -201,27 +195,199 @@ class ImprovedYouTubeDownloader {
     }
   }
 
-  async previewVideo(url) {
-    // Animación de entrada para el contenedor
+  async detectAndPreview(url) {
     this.previewContainer.style.opacity = "0";
     this.previewContainer.style.display = "block";
 
     try {
-      let videoInfo = this.videoInfoCache.get(url);
+      const response = await fetch("/detect-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
 
-      if (!videoInfo) {
-        videoInfo = await this.fetchVideoInfo(url);
-        this.videoInfoCache.set(url, videoInfo);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error HTTP: ${response.status}`);
       }
 
-      this.renderVideoPreview(videoInfo);
+      const result = await response.json();
 
-      // Animación suave de aparición
+      if (result.type === "playlist") {
+        this.currentContentType = "playlist";
+        this.currentPlaylistData = result.data;
+        this.renderPlaylistPreview(result.data);
+      } else {
+        this.currentContentType = "video";
+        this.currentPlaylistData = null;
+        this.renderVideoPreview(result.data);
+        this.videoInfoCache.set(url, result.data);
+      }
+
       this.previewContainer.style.transition = "opacity 0.3s ease";
       this.previewContainer.style.opacity = "1";
     } catch (error) {
       this.previewContainer.style.display = "none";
       throw error;
+    }
+  }
+
+  renderPlaylistPreview(playlistData) {
+    this.videoPreview.innerHTML = `
+      <div class="playlist-preview">
+        <img src="${playlistData.thumbnail}" alt="${this.escapeHtml(
+      playlistData.title
+    )}" 
+             style="width: 100%; max-height: 300px; object-fit: cover; border-radius: 8px;">
+        <div class="playlist-badge">
+          <i class="fas fa-list"></i> PLAYLIST
+        </div>
+      </div>
+    `;
+
+    this.videoInfo.innerHTML = `
+      <h3><i class="fas fa-list"></i> ${this.escapeHtml(
+        playlistData.title
+      )}</h3>
+      <div class="video-meta">
+        <p><i class="fas fa-video"></i> ${playlistData.videoCount} videos</p>
+        <p><i class="fas fa-user"></i> ${this.escapeHtml(
+          playlistData.channel
+        )}</p>
+      </div>
+      <div class="playlist-actions">
+        <button class="btn-playlist-preview" onclick="downloader.showPlaylistVideos()">
+          <i class="fas fa-eye"></i> Ver videos
+        </button>
+        <button class="btn-playlist-download" onclick="downloader.downloadFullPlaylist()">
+          <i class="fas fa-download"></i> Descargar todos
+        </button>
+      </div>
+    `;
+  }
+
+  showPlaylistVideos() {
+    if (!this.currentPlaylistData) return;
+
+    const modalHTML = `
+      <div class="modal-overlay" id="playlistModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Videos en la Playlist</h3>
+            <button class="modal-close" onclick="downloader.closePlaylistModal()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="playlist-videos-list">
+              ${this.currentPlaylistData.videos
+                .map(
+                  (video, index) => `
+                <div class="playlist-video-item" data-video-id="${video.id}">
+                  <input type="checkbox" id="video-${video.id}" checked>
+                  <label for="video-${video.id}">
+                    <span class="video-number">${index + 1}</span>
+                    <img src="${video.thumbnail}" alt="${this.escapeHtml(
+                    video.title
+                  )}">
+                    <div class="video-details">
+                      <p class="video-title">${this.escapeHtml(video.title)}</p>
+                      <p class="video-duration">${video.duration}</p>
+                    </div>
+                  </label>
+                </div>
+              `
+                )
+                .join("")}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-select-all" onclick="downloader.toggleAllVideos()">
+              <i class="fas fa-check-double"></i> Seleccionar todos
+            </button>
+            <button class="btn-download-selected" onclick="downloader.downloadSelectedVideos()">
+              <i class="fas fa-download"></i> Descargar seleccionados
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
+  }
+
+  toggleAllVideos() {
+    const checkboxes = document.querySelectorAll(
+      '#playlistModal input[type="checkbox"]'
+    );
+    const allChecked = Array.from(checkboxes).every((cb) => cb.checked);
+    checkboxes.forEach((cb) => (cb.checked = !allChecked));
+  }
+
+  downloadSelectedVideos() {
+    const checkedBoxes = document.querySelectorAll(
+      '#playlistModal input[type="checkbox"]:checked'
+    );
+    const selectedIds = Array.from(checkedBoxes).map((cb) =>
+      cb.id.replace("video-", "")
+    );
+
+    if (selectedIds.length === 0) {
+      this.showNotification("No hay videos seleccionados", "warning");
+      return;
+    }
+
+    this.closePlaylistModal();
+    this.addPlaylistToQueue(selectedIds);
+  }
+
+  downloadFullPlaylist() {
+    if (!this.currentPlaylistData) return;
+    this.addPlaylistToQueue();
+  }
+
+  addPlaylistToQueue(videoIds = null) {
+    const format = document.querySelector('input[name="format"]:checked').value;
+    const quality =
+      format === "video" ? this.videoQuality.value : this.audioQuality.value;
+
+    const videosToDownload = videoIds
+      ? this.currentPlaylistData.videos.filter((v) => videoIds.includes(v.id))
+      : this.currentPlaylistData.videos;
+
+    videosToDownload.forEach((video) => {
+      const downloadItem = {
+        id: Date.now() + Math.random(),
+        url: video.url,
+        format,
+        quality,
+        status: "queued",
+        title: video.title,
+        progress: 0,
+        addedAt: new Date(),
+        estimatedTime: null,
+        isFromPlaylist: true,
+      };
+
+      this.downloadQueue.push(downloadItem);
+    });
+
+    this.renderQueueWithAnimation();
+    this.showNotification(
+      `${videosToDownload.length} videos agregados a la cola`,
+      "success"
+    );
+
+    if (!this.currentDownload) {
+      this.processNextDownload();
+    }
+  }
+
+  closePlaylistModal() {
+    const modal = document.getElementById("playlistModal");
+    if (modal) {
+      modal.style.opacity = "0";
+      setTimeout(() => modal.remove(), 300);
     }
   }
 
@@ -237,8 +403,12 @@ class ImprovedYouTubeDownloader {
       return;
     }
 
-    this.addToQueue(url);
-    this.showNotification("Agregado a la cola de descarga", "success");
+    if (this.currentContentType === "playlist") {
+      this.downloadFullPlaylist();
+    } else {
+      this.addToQueue(url);
+      this.showNotification("Agregado a la cola de descarga", "success");
+    }
   }
 
   addToQueue(url) {
@@ -261,7 +431,6 @@ class ImprovedYouTubeDownloader {
     this.downloadQueue.push(downloadItem);
     this.renderQueueWithAnimation();
 
-    // Iniciar procesamiento si no hay descargas en curso
     if (!this.currentDownload) {
       this.processNextDownload();
     }
@@ -273,7 +442,6 @@ class ImprovedYouTubeDownloader {
   renderQueueWithAnimation() {
     this.renderQueue();
 
-    // Animación para nuevos elementos
     const newItems = this.queueList.querySelectorAll(".queue-item:last-child");
     newItems.forEach((item) => {
       item.style.opacity = "0";
@@ -393,7 +561,6 @@ class ImprovedYouTubeDownloader {
       this.currentDownload.progress = 100;
       this.showNotification("Descarga completada", "success");
 
-      // Mantener en cola por un momento antes de remover
       setTimeout(() => {
         this.downloadQueue.shift();
         this.renderQueue();
@@ -415,27 +582,20 @@ class ImprovedYouTubeDownloader {
   }
 
   async downloadItemWithDetailedProgress(item) {
-    const startTime = Date.now();
-
-    // Paso 1: Inicialización
     this.progressController.setStep("INITIALIZING", 0);
     await this.simulateProgress("INITIALIZING", 1000);
 
-    // Paso 2: Obtener información
     this.progressController.setStep("FETCHING_INFO", 0);
     await this.simulateProgress("FETCHING_INFO", 500);
 
-    // Paso 3: Descarga real
     this.progressController.setStep("DOWNLOADING", 0);
     await this.performActualDownload(item);
 
-    // Paso 4: Procesamiento (si es audio)
     if (item.format === "audio") {
       this.progressController.setStep("PROCESSING", 0);
       await this.simulateProgress("PROCESSING", 2000);
     }
 
-    // Paso 5: Finalización
     this.progressController.setStep("FINALIZING", 0);
     await this.simulateProgress("FINALIZING", 500);
   }
@@ -484,7 +644,6 @@ class ImprovedYouTubeDownloader {
       xhr.onerror = () => reject(new Error("Error de conexión"));
       xhr.onabort = () => reject(new Error("Descarga cancelada"));
 
-      // Progreso real de descarga
       xhr.onprogress = (e) => {
         if (e.lengthComputable) {
           const percent = Math.round((e.loaded / e.total) * 100);
@@ -492,12 +651,7 @@ class ImprovedYouTubeDownloader {
         }
       };
 
-      xhr.send(
-        JSON.stringify({
-          url: item.url,
-          quality: item.quality,
-        })
-      );
+      xhr.send(JSON.stringify({ url: item.url, quality: item.quality }));
     });
   }
 
@@ -521,7 +675,6 @@ class ImprovedYouTubeDownloader {
   cancelDownload(id) {
     const itemIndex = this.downloadQueue.findIndex((item) => item.id === id);
     if (itemIndex === 0 && this.currentDownload) {
-      // Cancelar descarga actual
       this.showNotification("Cancelando descarga...", "info");
     }
 
@@ -546,10 +699,11 @@ class ImprovedYouTubeDownloader {
     this.urlInput.value = "";
     this.previewContainer.style.display = "none";
     this.urlInput.classList.remove("valid", "invalid");
+    this.currentContentType = null;
+    this.currentPlaylistData = null;
   }
 
   showNotification(message, type = "info") {
-    // Crear sistema de notificaciones no intrusivo
     const notification = document.createElement("div");
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
@@ -557,13 +711,9 @@ class ImprovedYouTubeDownloader {
       <span>${message}</span>
     `;
 
-    // Agregar al DOM
     document.body.appendChild(notification);
-
-    // Animación de entrada
     setTimeout(() => notification.classList.add("show"), 10);
 
-    // Auto-eliminar
     setTimeout(() => {
       notification.classList.remove("show");
       setTimeout(() => document.body.removeChild(notification), 300);
@@ -601,21 +751,6 @@ class ImprovedYouTubeDownloader {
     const isVideoFormat = this.videoFormat.checked;
     this.videoQuality.style.display = isVideoFormat ? "block" : "none";
     this.audioQuality.style.display = isVideoFormat ? "none" : "block";
-  }
-
-  async fetchVideoInfo(url) {
-    const response = await fetch("/get-video-info", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error HTTP: ${response.status}`);
-    }
-
-    return await response.json();
   }
 
   renderVideoPreview(videoInfo) {
@@ -710,7 +845,6 @@ class ImprovedYouTubeDownloader {
       : '<i class="fas fa-search"></i> Previsualizar';
   }
 
-  // Utilidades
   escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
@@ -736,10 +870,8 @@ class ImprovedYouTubeDownloader {
   }
 }
 
-// Variable global para acceso desde botones inline
 let downloader;
 
-// Inicializar cuando el DOM esté listo
 document.addEventListener("DOMContentLoaded", () => {
   try {
     downloader = new ImprovedYouTubeDownloader();

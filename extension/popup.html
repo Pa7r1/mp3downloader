@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>YDL</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=DM+Sans:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #111;
+        --card: #1c1c1c;
+        --border: #2e2e2e;
+        --red: #ff2d2d;
+        --red2: #c41f1f;
+        --text: #f4f4f4;
+        --muted: #666;
+        --green: #1fcc6b;
+        --yellow: #f5a623;
+        --radius: 12px;
+      }
+      body {
+        width: 340px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        overflow: hidden;
+      }
+
+      /* ── Header ── */
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px 10px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .brand-icon {
+        width: 28px;
+        height: 28px;
+        background: var(--red);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .brand-icon svg {
+        width: 15px;
+        height: 15px;
+      }
+      .brand-name {
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: 16px;
+        letter-spacing: -0.5px;
+      }
+      .status-pill {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 4px 10px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--muted);
+        flex-shrink: 0;
+      }
+      .dot.online {
+        background: var(--green);
+        box-shadow: 0 0 5px var(--green);
+      }
+      .dot.offline {
+        background: var(--red);
+      }
+
+      /* ── Video card ── */
+      .video-section {
+        margin: 0 12px 10px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        min-height: 72px;
+        display: flex;
+        align-items: center;
+      }
+      .empty-state {
+        padding: 18px 16px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .empty-state strong {
+        display: block;
+        color: var(--text);
+        font-size: 13px;
+        margin-bottom: 3px;
+      }
+      .video-card {
+        display: flex;
+        gap: 0;
+        width: 100%;
+      }
+      .thumb-wrap {
+        position: relative;
+        flex-shrink: 0;
+      }
+      .thumb {
+        width: 96px;
+        height: 72px;
+        object-fit: cover;
+        display: block;
+        background: #222;
+      }
+      .duration-badge {
+        position: absolute;
+        bottom: 4px;
+        right: 4px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        font-size: 10px;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-family: "Syne", sans-serif;
+      }
+      .video-meta {
+        padding: 10px 12px;
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+      }
+      .video-title {
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .video-channel {
+        font-size: 11px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ── Format buttons ── */
+      .format-section {
+        padding: 0 12px 10px;
+        display: flex;
+        gap: 8px;
+      }
+      .fmt-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        background: var(--card);
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        padding: 10px 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+        color: var(--muted);
+      }
+      .fmt-btn:hover {
+        border-color: #444;
+        color: var(--text);
+      }
+      .fmt-btn.active {
+        border-color: var(--red);
+        color: var(--text);
+        background: #1f1010;
+      }
+      .fmt-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+      .fmt-label {
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .fmt-sub {
+        font-size: 10px;
+        color: inherit;
+        opacity: 0.7;
+      }
+
+      /* ── Download button ── */
+      .action-section {
+        padding: 0 12px 12px;
+      }
+      #dl-btn {
+        width: 100%;
+        padding: 13px;
+        border: none;
+        border-radius: var(--radius);
+        background: var(--red);
+        color: #fff;
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition:
+          background 0.15s,
+          transform 0.1s;
+      }
+      #dl-btn:hover:not(:disabled) {
+        background: var(--red2);
+      }
+      #dl-btn:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+      #dl-btn:disabled {
+        background: #2a2a2a;
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+      #dl-btn.success {
+        background: var(--green);
+        color: #000;
+      }
+      #dl-btn.error-state {
+        background: #5a1a1a;
+        color: var(--red);
+      }
+
+      /* ── Progress ── */
+      .progress-section {
+        margin: 0 12px 10px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        display: none;
+      }
+      .progress-section.visible {
+        display: block;
+      }
+      .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .progress-phase {
+        font-size: 12px;
+        color: var(--text);
+        font-weight: 500;
+      }
+      .progress-pct {
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--red);
+      }
+      .progress-track {
+        height: 4px;
+        background: var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 6px;
+      }
+      .progress-fill {
+        height: 100%;
+        background: var(--red);
+        border-radius: 4px;
+        transition: width 0.4s ease;
+        width: 0%;
+      }
+      .progress-fill.done {
+        background: var(--green);
+      }
+      .progress-meta {
+        font-size: 11px;
+        color: var(--muted);
+        display: flex;
+        gap: 10px;
+      }
+
+      /* ── Footer ── */
+      footer {
+        padding: 8px 16px 10px;
+        border-top: 1px solid var(--border);
+        font-size: 11px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 32px;
+      }
+      footer.error {
+        color: #ff6b6b;
+      }
+      footer.success {
+        color: var(--green);
+      }
+
+      .spinner {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1.5px solid #444;
+        border-top-color: var(--text);
+        animation: spin 0.6s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="white">
+            <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z" />
+          </svg>
+        </div>
+        <span class="brand-name">YDL</span>
+      </div>
+      <div class="status-pill">
+        <div class="dot" id="srv-dot"></div>
+        <span id="srv-label">verificando...</span>
+      </div>
+    </header>
+
+    <div class="video-section" id="video-section">
+      <div class="empty-state" id="empty-state">
+        <strong>Nada por acá todavía</strong>
+        Abrí un video de YouTube y volvé a abrir la extensión.
+      </div>
+      <div class="video-card" id="video-card" style="display: none">
+        <div class="thumb-wrap">
+          <img class="thumb" id="v-thumb" src="" alt="" />
+          <span class="duration-badge" id="v-duration"></span>
+        </div>
+        <div class="video-meta">
+          <p class="video-title" id="v-title"></p>
+          <p class="video-channel" id="v-channel"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="format-section">
+      <button class="fmt-btn active" id="fmt-mp3">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" />
+        </svg>
+        <span class="fmt-label">MP3</span>
+        <span class="fmt-sub">Mejor calidad</span>
+      </button>
+      <button class="fmt-btn" id="fmt-mp4">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"
+          />
+        </svg>
+        <span class="fmt-label">MP4</span>
+        <span class="fmt-sub">Máxima resolución</span>
+      </button>
+    </div>
+
+    <div class="progress-section" id="progress-section">
+      <div class="progress-header">
+        <span class="progress-phase" id="prog-phase">Preparando...</span>
+        <span class="progress-pct" id="prog-pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="prog-fill"></div>
+      </div>
+      <div class="progress-meta">
+        <span id="prog-speed"></span>
+        <span id="prog-eta"></span>
+        <span id="prog-size"></span>
+      </div>
+    </div>
+
+    <div class="action-section">
+      <button id="dl-btn" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z" />
+        </svg>
+        Descargar
+      </button>
+    </div>
+
+    <footer id="footer">Listo para descargar</footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
