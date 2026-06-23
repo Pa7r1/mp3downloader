@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * Native Messaging Host para YDL
  * Chrome lo lanza automáticamente cuando la extensión se conecta.

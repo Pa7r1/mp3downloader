@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "Descargá audio y video de YouTube con un clic",
   "permissions": ["activeTab", "nativeMessaging", "storage", "downloads"],
-  "host_permissions": ["*://*.youtube.com/*", "*://*.youtu.be/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -16,13 +15,6 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["*://*.youtube.com/*", "*://*.youtu.be/*"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",

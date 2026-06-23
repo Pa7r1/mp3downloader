@@ -1,29 +1,92 @@
 "use strict";
 
 const SERVER = "http://localhost:3000";
+const NATIVE_HOST = "com.pa7r1.ydl";
 
-async function waitForServer(timeout = 8000) {
+async function pingHealth(timeoutMs = 600) {
+  try {
+    const r = await fetch(`${SERVER}/health`, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForServer(timeout = 10000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
-    try {
-      const r = await fetch(`${SERVER}/health`, {
-        signal: AbortSignal.timeout(1500),
-      });
-      if (r.ok) return true;
-    } catch {
-      /* sigue */
-    }
-    await new Promise((r) => setTimeout(r, 600));
+    if (await pingHealth(800)) return true;
+    await new Promise((r) => setTimeout(r, 500));
   }
   return false;
+}
+
+async function ensureServer() {
+  if (await pingHealth(600)) return true;
+
+  let port;
+  try {
+    port = chrome.runtime.connectNative(NATIVE_HOST);
+  } catch (e) {
+    console.warn("[YDL] connectNative falló:", e.message);
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      try {
+        port.disconnect();
+      } catch {
+        /* ok */
+      }
+      resolve(ok);
+    };
+
+    port.onMessage.addListener((msg) => {
+      if (msg?.status === "ready") {
+        waitForServer(8000).then(finish);
+      } else if (msg?.status === "error") {
+        finish(false);
+      }
+    });
+
+    port.onDisconnect.addListener(() => {
+      const err = chrome.runtime.lastError?.message;
+      if (err) console.warn("[YDL] native disconnect:", err);
+      if (!settled) waitForServer(5000).then(finish);
+    });
+
+    try {
+      port.postMessage({ action: "start" });
+    } catch (e) {
+      console.warn("[YDL] postMessage falló:", e.message);
+      finish(false);
+      return;
+    }
+
+    setTimeout(() => {
+      if (!settled) waitForServer(1).then(finish);
+    }, 15000);
+  });
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     try {
       switch (msg.action) {
+        case "ensureServer": {
+          const ready = await ensureServer();
+          sendResponse({ ok: true, ready });
+          break;
+        }
+
         case "detect": {
-          const ready = await waitForServer(5000);
+          const ready = await ensureServer();
           if (!ready) {
             sendResponse({ ok: false, error: "Servidor offline" });
             return;
@@ -39,7 +102,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
 
         case "startDownload": {
-          const ready = await waitForServer(5000);
+          const ready = await ensureServer();
           if (!ready) {
             sendResponse({
               ok: false,
@@ -62,20 +125,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
 
         case "saveFile": {
-          // Construir la URL del archivo y usar chrome.downloads con saveAs: true
-          // para que aparezca el diálogo "¿dónde guardar?"
           const fileUrl = `${SERVER}/file/${msg.downloadId}?filename=${encodeURIComponent(msg.filename)}`;
           await chrome.downloads.download({
             url: fileUrl,
             filename: msg.filename,
-            saveAs: true, // ← abre el diálogo de guardar
+            saveAs: true,
           });
           sendResponse({ ok: true });
           break;
         }
 
         case "serverStatus": {
-          const ready = await waitForServer(3000);
+          const ready = await pingHealth(1500);
           sendResponse({ ok: true, ready });
           break;
         }
@@ -88,7 +149,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   return true;
 });
 
-// Arrancar: intentar conectar nativo o asumir servidor ya corriendo
 chrome.runtime.onInstalled.addListener(() =>
   console.log("[YDL] Extensión instalada"),
 );

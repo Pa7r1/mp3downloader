@@ -12,6 +12,14 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function formatBytes(n) {
+  if (!n) return "—";
+  const mb = n / (1024 * 1024);
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  if (mb >= 10) return `${Math.round(mb)} MB`;
+  return `${mb.toFixed(1)} MB`;
+}
+
 function setFooter(msg, type = "") {
   const el = $("footer");
   el.className = type;
@@ -192,20 +200,41 @@ function listenProgress(downloadId) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-async function init() {
-  // Verificar servidor
+async function pingServer(timeoutMs = 1500) {
   try {
     const r = await fetch(`${SERVER}/health`, {
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    setServerStatus(r.ok);
-    if (!r.ok) setFooter("Servidor offline — ejecutá npm run dev", "error");
+    return r.ok;
   } catch {
+    return false;
+  }
+}
+
+async function ensureServerViaBackground() {
+  return new Promise((resolve) =>
+    chrome.runtime.sendMessage({ action: "ensureServer" }, (res) => {
+      void chrome.runtime.lastError;
+      resolve(!!res?.ready);
+    }),
+  );
+}
+
+async function init() {
+  let online = await pingServer(1500);
+
+  if (!online) {
     setServerStatus(false);
-    setFooter("Servidor offline — ejecutá npm run dev", "error");
+    setFooter("Arrancando servidor...", "loading");
+    online = await ensureServerViaBackground();
   }
 
-  // Tab activo
+  setServerStatus(online);
+  if (!online) {
+    setFooter("Servidor offline — ejecutá npm run dev", "error");
+    return;
+  }
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url) return;
 
@@ -235,18 +264,23 @@ async function init() {
     $("v-thumb").src = data.thumbnail || "";
     $("v-title").textContent = data.title || "Sin título";
     $("v-channel").textContent = data.channel || "";
-    $("v-duration").textContent =
-      data.duration || data.videoCount
-        ? data.videoCount
-          ? `${data.videoCount} videos`
-          : data.duration
-        : "";
+    $("v-duration").textContent = data.videoCount
+      ? `${data.videoCount} videos`
+      : data.duration || "";
+    $("v-views").textContent = data.views
+      ? `${data.views.toLocaleString("es-AR")} vistas`
+      : "";
+
+    const sizes = data.sizes || { audio: 0, video: 0 };
+    $("fmt-mp3-size").textContent = formatBytes(sizes.audio);
+    $("fmt-mp4-size").textContent = formatBytes(sizes.video);
+
     $("dl-btn").disabled = false;
 
     setFooter(
       result.type === "playlist"
         ? `Playlist · ${data.videoCount} videos`
-        : `${data.duration} · ${(data.views || 0).toLocaleString("es-AR")} vistas`,
+        : "Listo para descargar",
     );
   } catch (err) {
     setFooter("No se pudo cargar el video: " + err.message, "error");

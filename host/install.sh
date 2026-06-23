@@ -35,7 +35,7 @@ if [[ -z "$EXT_ID" ]]; then
 fi
 
 # Generar el manifest de Native Messaging
-NODE_PATH="$(which node)"
+HOST_PATH="$HOST_SCRIPT"
 MANIFEST_JSON=$(cat <<EOF
 {
   "name": "$HOST_NAME",
@@ -48,10 +48,6 @@ MANIFEST_JSON=$(cat <<EOF
 }
 EOF
 )
-
-# Reemplazar placeholder con la ruta real
-HOST_PATH="$HOST_SCRIPT"
-MANIFEST_JSON=$(echo "$MANIFEST_JSON" | sed "s|\"path\": \".*\"|\"path\": \"$HOST_PATH\"|")
 
 # 4. Instalar para Chrome y Chromium
 for DIR in "$MANIFEST_DIR" "$MANIFEST_CHROMIUM"; do

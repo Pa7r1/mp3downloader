@@ -168,6 +168,13 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .video-views {
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
       /* ── Format buttons ── */
       .format-section {
@@ -373,6 +380,7 @@
         <div class="video-meta">
           <p class="video-title" id="v-title"></p>
           <p class="video-channel" id="v-channel"></p>
+          <p class="video-views" id="v-views"></p>
         </div>
       </div>
     </div>
@@ -383,7 +391,7 @@
           <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" />
         </svg>
         <span class="fmt-label">MP3</span>
-        <span class="fmt-sub">Mejor calidad</span>
+        <span class="fmt-sub" id="fmt-mp3-size">—</span>
       </button>
       <button class="fmt-btn" id="fmt-mp4">
         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -392,7 +400,7 @@
           />
         </svg>
         <span class="fmt-label">MP4</span>
-        <span class="fmt-sub">Máxima resolución</span>
+        <span class="fmt-sub" id="fmt-mp4-size">—</span>
       </button>
     </div>
 
