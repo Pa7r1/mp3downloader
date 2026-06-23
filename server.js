@@ -15,6 +15,7 @@ const PORT = process.env.PORT || 3000;
 const TEMP_DIR = path.join(__dirname, "temp");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const MAX_FILE_AGE_MS = 60 * 60 * 1000;
+const COOKIES_FILE = `${process.env.HOME}/yt-cookies.txt`;
 
 const sseClients = new Map();
 
@@ -65,11 +66,48 @@ function sendSSE(downloadId, event, data) {
     client.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+function pickSize(f) {
+  return f.filesize || f.filesize_approx || 0;
+}
+
+function estimateSizes(formats) {
+  if (!Array.isArray(formats)) return { audio: 0, video: 0 };
+
+  const audioOnly = formats.filter(
+    (f) =>
+      f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none"),
+  );
+  const bestAudio =
+    audioOnly
+      .filter((f) => f.ext === "m4a")
+      .sort((a, b) => pickSize(b) - pickSize(a))[0] ||
+    audioOnly.sort((a, b) => pickSize(b) - pickSize(a))[0];
+
+  const videoOnly = formats.filter(
+    (f) =>
+      f.vcodec && f.vcodec !== "none" && (!f.acodec || f.acodec === "none"),
+  );
+  const bestVideo =
+    videoOnly
+      .filter((f) => f.ext === "mp4")
+      .sort((a, b) => (b.height || 0) - (a.height || 0))[0] ||
+    videoOnly.sort((a, b) => (b.height || 0) - (a.height || 0))[0];
+
+  const audioBytes = bestAudio ? pickSize(bestAudio) : 0;
+  const videoBytes = bestVideo ? pickSize(bestVideo) : 0;
+  return {
+    audio: audioBytes,
+    video: audioBytes + videoBytes,
+  };
+}
+
 async function getVideoInfo(url) {
   const raw = await ytdlp([
     url,
     "--dump-json",
     "--no-playlist",
+    "--cookies",
+    COOKIES_FILE,
     "--js-runtimes",
     `node:${process.execPath}`,
   ]);
@@ -81,6 +119,7 @@ async function getVideoInfo(url) {
     channel: info.uploader || info.channel || "Desconocido",
     views: info.view_count ?? 0,
     thumbnail: info.thumbnail || "",
+    sizes: estimateSizes(info.formats),
   };
 }
 
@@ -89,6 +128,8 @@ async function getPlaylistInfo(url) {
     url,
     "--dump-json",
     "--flat-playlist",
+    "--cookies",
+    COOKIES_FILE,
     "--js-runtimes",
     `node:${process.execPath}`,
   ]);
@@ -146,6 +187,8 @@ async function downloadWithProgress(url, format, downloadId) {
         "mp3",
         "--audio-quality",
         "0",
+        "--cookies",
+        COOKIES_FILE,
         "-o",
         `${tmpBase}.%(ext)s`,
         "--no-playlist",
@@ -177,6 +220,8 @@ async function downloadWithProgress(url, format, downloadId) {
         "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
         "--merge-output-format",
         "mp4",
+        "--cookies",
+        COOKIES_FILE,
         "-o",
         tmpPath,
         "--no-playlist",
@@ -265,10 +310,15 @@ app.use(
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
 
+// Reenvía los rechazos de los handlers async al middleware de error.
+// Necesario porque Express 4 no lo hace solo (a diferencia de Express 5).
+const asyncH = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
 
-app.post("/detect-url", async (req, res) => {
+app.post("/detect-url", asyncH(async (req, res) => {
   const { url } = req.body;
   if (!url || !isYouTubeURL(url))
     return res.status(400).json({ error: "URL inválida" });
@@ -279,22 +329,22 @@ app.post("/detect-url", async (req, res) => {
     const data = await getVideoInfo(url);
     res.json({ type: "video", data });
   }
-});
+}));
 
-app.post("/get-video-info", async (req, res) => {
+app.post("/get-video-info", asyncH(async (req, res) => {
   const { url } = req.body;
   if (!url || !isYouTubeURL(url))
     return res.status(400).json({ error: "URL inválida" });
   res.json(await getVideoInfo(url));
-});
+}));
 
-app.post("/get-video-title", async (req, res) => {
+app.post("/get-video-title", asyncH(async (req, res) => {
   const { url } = req.body;
   if (!url || !isYouTubeURL(url))
     return res.status(400).json({ error: "URL inválida" });
   const { title } = await getVideoInfo(url);
   res.json({ title });
-});
+}));
 
 app.get("/progress/:downloadId", (req, res) => {
   const { downloadId } = req.params;
@@ -318,7 +368,7 @@ app.post("/start-download", async (req, res) => {
   });
 });
 
-app.get("/file/:downloadId", async (req, res) => {
+app.get("/file/:downloadId", asyncH(async (req, res) => {
   const { downloadId } = req.params;
   const { filename } = req.query;
   const files = await fs.readdir(TEMP_DIR).catch(() => []);
@@ -333,7 +383,7 @@ app.get("/file/:downloadId", async (req, res) => {
   );
   res.setHeader("Content-Type", ext === "mp3" ? "audio/mpeg" : "video/mp4");
   await pipeAndClean(filePath, res);
-});
+}));
 
 app.use((err, _req, res, _next) => {
   console.error("❌", err.message);
