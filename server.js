@@ -11,7 +11,7 @@ import sanitize from "sanitize-filename";
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3100;
 const TEMP_DIR = path.join(__dirname, "temp");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const MAX_FILE_AGE_MS = 60 * 60 * 1000;

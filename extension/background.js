@@ -1,6 +1,6 @@
 "use strict";
 
-const SERVER = "http://localhost:3000";
+const SERVER = "http://localhost:3100";
 const NATIVE_HOST = "com.pa7r1.ydl";
 
 async function pingHealth(timeoutMs = 600) {

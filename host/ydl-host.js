@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Ruta al server.js
 const SERVER_DIR = path.join(__dirname, "..");
 const SERVER_SCRIPT = path.join(SERVER_DIR, "server.js");
-const SERVER_PORT = 3000;
+const SERVER_PORT = 3100;
 
 let serverProcess = null;
 

@@ -1,6 +1,6 @@
 "use strict";
 
-const SERVER = "http://localhost:3000";
+const SERVER = "http://localhost:3100";
 let currentURL = null;
 let selectedFormat = "audio";
 let isDownloading = false;

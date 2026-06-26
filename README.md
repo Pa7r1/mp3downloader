@@ -35,7 +35,7 @@ npm run dev     # desarrollo, con recarga (node --watch)
 npm start       # producción
 ```
 
-El servidor queda en `http://localhost:3000` (o el puerto de `$PORT`).
+El servidor queda en `http://localhost:3100` (o el puerto de `$PORT`).
 
 1. Pegá la URL de un video o playlist de YouTube.
 2. Vas a ver un preview con título, canal, duración y tamaño estimado.
