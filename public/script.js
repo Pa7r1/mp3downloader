@@ -624,34 +624,58 @@ class ImprovedYouTubeDownloader {
 
   performActualDownload(item) {
     return new Promise((resolve, reject) => {
-      const endpoint =
-        item.format === "video" ? "/download-video" : "/download-audio";
-      const xhr = new XMLHttpRequest();
+      fetch("/start-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: item.url, format: item.format }),
+      })
+        .then((r) => r.json())
+        .then(({ downloadId, error }) => {
+          if (!downloadId)
+            throw new Error(error || "No se pudo iniciar la descarga");
 
-      xhr.open("POST", endpoint, true);
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.responseType = "blob";
+          const es = new EventSource(`/progress/${downloadId}`);
 
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          this.handleSuccessfulDownload(xhr);
-          resolve();
-        } else {
-          reject(new Error(this.getErrorMessage(xhr.status)));
-        }
-      };
+          // Progreso real reportado por el servidor (fase DOWNLOADING)
+          es.addEventListener("progress", (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (typeof data.percent === "number")
+                this.progressController.updateStepProgress(data.percent);
+            } catch {
+              /* ignorar líneas no-JSON */
+            }
+          });
 
-      xhr.onerror = () => reject(new Error("Error de conexión"));
-      xhr.onabort = () => reject(new Error("Descarga cancelada"));
+          // Archivo listo: lo pedimos y disparamos la descarga en el navegador
+          es.addEventListener("ready", async (e) => {
+            es.close();
+            try {
+              const { filename } = JSON.parse(e.data);
+              const res = await fetch(
+                `/file/${downloadId}?filename=${encodeURIComponent(filename)}`
+              );
+              if (!res.ok) throw new Error(this.getErrorMessage(res.status));
+              this.saveBlob(await res.blob(), filename);
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          });
 
-      xhr.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-          this.progressController.updateStepProgress(percent);
-        }
-      };
-
-      xhr.send(JSON.stringify({ url: item.url, quality: item.quality }));
+          // Error del servidor (trae data) o caída de conexión (no la trae)
+          es.addEventListener("error", (e) => {
+            let msg = "Error en la descarga";
+            try {
+              if (e.data) msg = JSON.parse(e.data).message || msg;
+            } catch {
+              /* error de conexión, sin payload */
+            }
+            es.close();
+            reject(new Error(msg));
+          });
+        })
+        .catch((err) => reject(err));
     });
   }
 
@@ -804,16 +828,7 @@ class ImprovedYouTubeDownloader {
     }
   }
 
-  handleSuccessfulDownload(xhr) {
-    const blob = xhr.response;
-    const contentDisposition = xhr.getResponseHeader("Content-Disposition");
-    let filename = "descarga";
-
-    if (contentDisposition) {
-      const match = contentDisposition.match(/filename="(.+)"/);
-      if (match) filename = decodeURIComponent(match[1]);
-    }
-
+  saveBlob(blob, filename = "descarga") {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
